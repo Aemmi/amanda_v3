@@ -2,6 +2,8 @@
 
 namespace Src\Amanda;
 
+use Src\Amanda\Handler;
+
 class Router{
     function __construct(){
         $this->full_path = $_SERVER['REQUEST_URI'];
@@ -134,10 +136,11 @@ class Router{
         return $this->handleRequest($path,$params);
     }
 
-    public function render($file, $callback = null){
-        if($callback != null){
-            $callback();
-        }
-        include_once('temp/'.$file.'.temp.php');
+    public static function render($file,$var = array()){
+        //print_r($var);
+        // Handler::execute($file, $callback);
+        extract($var);
+        require('temp/'.$file.'.temp.php');
+
     }
-}
+}   
