@@ -13,11 +13,11 @@ if(isset($data)){
 		echo $rec['id']." -".$rec['post_title'];
 	}
 }
-if(isset($me)){
-	echo '<p>'.$me.'</p>';
+if(isset($_GET['me'])){
+	echo '<p>'.$_GET['me'].'</p>';
 }
 ?>
-<form method="post" action="./form">
+<form method="post" action="/amanda/form">
 	<p><input type="text" name="name"></p>
 	<p><input type="submit" name="send"></p>
 </form>

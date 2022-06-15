@@ -44,41 +44,39 @@ class Router{
         return str_replace("/","",$path);
     }
 
-    public function contain($p){
-        if($this->isQueryString()){ 
-            if(!isset($_GET[$p])){
-                return false;
-            }else{
-                return true;
-            }
+    public function contain($p){ 
+        if(isset($_GET[$p])){
+            return true;
+        }elseif(in_array($p,$this->params)){
+            return true;
         }else{
-            if(!in_array($p,$this->params)){
-                return false;
-            }else{
-                return true;
-            }
+            return false;
         }
     }
 
     public function val($p){
-        if($this->isQueryString() && $this->request_method == "GET"){ 
-
-            return $_GET[$p];
-
-        }elseif(!$this->isQueryString() && $this->request_method == "POST"){
-
-            return $_POST[$p];
-
+        if($this->request_method === "GET"){ 
+            if($this->isQueryString()){
+                if(isset($_GET[$p])){
+                    return $_GET[$p];
+                }
+            }else{
+                return $this->url()[array_search($p, $this->url())+1];
+            }
+        }elseif($this->request_method === "POST"){
+            if(isset($_POST[$p])){
+                return $_POST[$p];
+            }
         }else{
 
-            return $this->url()[array_search($p, $this->url())+1];
+            return false;
 
         }
     }
 
     public function handleRequest($path,$params){
         //print ($this->url()[2]);
-        if($this->request_method == "GET"){
+        if($_SERVER['REQUEST_METHOD'] == "GET"){
 
             //check if url has query string
             if($this->isQueryString()){ 
@@ -98,20 +96,16 @@ class Router{
                 // print($this->queryString());
 
             }else{
-                if(empty($this->url())){
+
+                if($this->url()[2] == $this->strippedPath($path)){
+                    //print_r($this->url());
+                    $this->params = $params;
+                    //print_r($this->url());
                     return true;
                 }else{
-
-                    if($this->url()[2] == $this->strippedPath($path)){
-                        //print_r($this->url());
-                        $this->params = $params;
-                        //print_r($this->params);
-                        return true;
-                    }else{
-                        return false;
-                    }
-
+                    return false;
                 }
+
             }
 
         }else{
