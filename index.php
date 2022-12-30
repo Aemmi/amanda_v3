@@ -57,9 +57,6 @@ if($router->get('/contact')){
  **/ 
 if($router->notFound()){
 
-	print_r($router->full_path)."<br>";
-	print_r($_SERVER['QUERY_STRING'])."<br>";
-	print_r($router->queryString())."<br>";
     $router::render('not-found');
 
 }
