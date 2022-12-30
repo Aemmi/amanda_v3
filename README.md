@@ -1,3 +1,5 @@
+Amanda is an easy to use, light-weight MVC framework written in PHP. To get started, use this guide:
+
 <?php
 
 require "bootstrap.inc.php";
