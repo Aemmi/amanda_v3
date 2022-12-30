@@ -27,7 +27,7 @@ class Blog extends DB{
 		if($this->countRows($this->sql) > 0){
 			return $this->select($this->sql);
 		}else{
-			return false;
+			return [];
 		}
 	}
 
@@ -36,7 +36,7 @@ class Blog extends DB{
 		if($this->countRows($this->sql) > 0){
 			return $this->select($this->sql);
 		}else{
-			return false;
+			return [];
 		}
 	}
 
@@ -45,7 +45,7 @@ class Blog extends DB{
 		if($this->countRows($this->sql) > 0){
 			return $this->select($this->sql);
 		}else{
-			return false;
+			return [];
 		}
 	}
 

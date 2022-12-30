@@ -16,7 +16,6 @@ class Sanitize{
 	}
 
 	private function clean(){
-		$this->var = htmlspecialchars($this->var);
 
 		$this->var = addslashes($this->var);
 

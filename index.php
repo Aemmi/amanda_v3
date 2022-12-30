@@ -3,24 +3,63 @@
 require "bootstrap.inc.php";
 
 use Src\Amanda\Router;
-use Src\Amanda\Blog;
 
 $router = new Router();
 
-$blog = new Blog();
-
 if($router->get('/')){
-	echo '<h2>Home Page</h2>';
+
+	$title = "Home Page";
+	$router::render('index', ['title'=>$title]);
+
 }
 
 if($router->get('/about', ['id','me'])){
-	$data = $blog->all();
-	echo $router->val('me');
-	echo $router->val('id');
-	$router::render('index', ['data'=>$data]);
+
+	$title = "About Page";
+	$router::render('about', ['title'=>$title]);
 
 }
 
-if($router->post('/form', ['name'])){
-	echo $router->val('name');
+/**
+ * make a get request with url params
+ **/ 
+if($router->get('/get', ['id','me'])){
+
+	$id = $router->val('id');
+	$me = $router->val('me');
+	$title = "Simple Get Request Page";
+	$router::render('get', ['title'=>$title,'id'=>$id,'me'=>$me]);
+
+}
+
+/**
+ * make a post request and get form inputs
+ **/ 
+if($router->post('/contact', ['fname','message'])){
+
+	echo $router->input('fname')."<br>";
+	echo $router->input('message');
+
+}
+
+/**
+ * make a simple get request and pass in data or variable to view
+ **/ 
+if($router->get('/contact')){
+
+	$title = "Contact Page";
+	$router::render('contact',['title'=>$title]);
+
+}
+
+/**
+ * handle 404 redirects
+ **/ 
+if($router->notFound()){
+
+	print_r($router->full_path)."<br>";
+	print_r($_SERVER['QUERY_STRING'])."<br>";
+	print_r($router->queryString())."<br>";
+    $router::render('not-found');
+
 }

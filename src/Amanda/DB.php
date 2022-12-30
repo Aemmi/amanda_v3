@@ -6,7 +6,7 @@ namespace Src\Amanda;
 class DB{
 	//contruct the class
 	
-	private $con = null;
+	public $con = null;
 
 	public function __construct(){
 		//define db variables as objects
@@ -55,6 +55,16 @@ class DB{
 		
 	}
 
+	public function sanitize($value)
+	{
+		// code...
+		$value = trim($value);
+		$value = htmlspecialchars($value);
+		$value = addslashes($value);
+
+		return $value;
+	}
+
 
 	//function to insert data into the db
 	public function insert($sql){
@@ -73,6 +83,7 @@ class DB{
 
 	//function to perform selection queries from db
 	public function select($sql){
+		
 		$this->sql = $sql;
 
 		$this->result = array();
@@ -88,6 +99,53 @@ class DB{
 
 		return $this->result;
 
+	}
+
+	public function find($tbl,$col){
+		
+		$data = explode('.', $tbl);
+
+		$table = $data[0];
+		$column = $data[1];
+
+		$this->sql = "SELECT * FROM $table WHERE $column = '$col' LIMIT 1";
+
+		$this->result = array();
+
+		$this->query = $this->con->query($this->sql);
+
+		while($row = $this->query->fetch_assoc()){
+
+			//get data into multi-dimensional array
+			$this->result[] = $row;
+
+		}
+
+		return $this->result;
+
+	}
+
+	public function search($tbl,$col)
+	{
+		$data = explode('.', $tbl);
+
+		$table = $data[0];
+		$column = $data[1];
+
+		$this->sql = "SELECT * FROM $table WHERE $column LIKE '%$col%'";
+
+		$this->result = array();
+
+		$this->query = $this->con->query($this->sql);
+
+		while($row = $this->query->fetch_assoc()){
+
+			//get data into multi-dimensional array
+			$this->result[] = $row;
+
+		}
+
+		return $this->result;
 	}
 
 	//=======================================
