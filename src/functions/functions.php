@@ -228,6 +228,28 @@ function url($addr)
 	}
 }
 
+function curAddr()
+{
+
+    if($_SERVER['QUERY_STRING']){
+        $url = $_SERVER['REQUEST_URI'];
+        $query_string_pos = strpos($url, '?');
+
+        if ($query_string_pos !== false) {
+          // The query string was found in the URL
+          // You can add a slash before it like this:
+          $url = substr_replace($url, '/', $query_string_pos,0);
+          $link_array = explode('/', $url);
+          return $link_array[count($link_array)-1];
+        }
+    }else{
+    	$url = $_SERVER['REQUEST_URI'];
+        $link_array = explode('/', $url);
+        return $link_array[count($link_array)-1];
+    }
+        
+}
+
 function redirect($route)
 {
 	echo '<script>location.assign("'.$route.'");</script>';
@@ -264,7 +286,7 @@ function authenticated()
 
 function auth(){
     if(isset($_SESSION['user'])){
-	    return $_SESSION['user'];
+	    return $_SESSION['user'][0];
     }else{
         return array();
     }
@@ -484,17 +506,6 @@ function gallery()
 {
 	global $router;
 	$sql = "SELECT * FROM galleries";
-	if($router->countRows($sql) > 0){
-		return $router->select($sql);
-	}else{
-		return array();
-	}
-}
-
-function clients()
-{
-    global $router;
-	$sql = "SELECT * FROM clients";
 	if($router->countRows($sql) > 0){
 		return $router->select($sql);
 	}else{
@@ -1788,4 +1799,15 @@ function gCaptcha($user_response){
     curl_close($ch);
     
     return json_decode($result, true);
+}
+
+/**
+*controllers
+**/ 
+function accountController()
+{
+	$response['status'] = "Failed";
+	$response['message'] = "Email is ".$router->input('loginId');
+
+	echo json_encode($response);
 }
