@@ -14,7 +14,7 @@
     require 'SMTP/src/SMTP.php';
     
     //smtp mailer starts here
-    // $mailer = new PHPMailer(true);
+    $mailer = new PHPMailer(true);
 	
 	use Dotenv\Dotenv;
 	use Src\Amanda\DB;
@@ -26,6 +26,14 @@
 	$dotenv = Dotenv::createImmutable(__DIR__);
 	$dotenv->load();
 	
+	if($_ENV['APP_DEBUG'] == "true"){
+		error_reporting(E_ALL);
+		ini_set('display_errors', '1');
+		// error_reporting(E_All);
+	}else{
+	    error_reporting(0);
+	}
+
 	require "src/functions/functions.php";
 
 	$db = (new Db())->connector();

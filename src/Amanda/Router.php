@@ -108,6 +108,12 @@ class Router extends DB{
     }
 
     public function handleRequest($path,$params){
+        
+        if($_ENV['APP_ENV'] == 'local'){
+            $index = 2;
+        }else{
+            $index = 1;
+        }
 
         if($_SERVER['REQUEST_METHOD'] === "GET"){
 
@@ -117,7 +123,7 @@ class Router extends DB{
                 $url_comp = parse_url($this->full_path);
                 parse_str($url_comp['query'], $params);
                 
-                if($this->url()[2] == $this->strippedPath($path)){
+                if($this->url()[$index] == $this->strippedPath($path)){
                     
                     $this->params = array_keys($this->queryString());
                     return true;
@@ -130,7 +136,7 @@ class Router extends DB{
 
             }else{
 
-                if($this->url()[2] == $this->strippedPath($path)){
+                if($this->url()[$index] == $this->strippedPath($path)){
 
                     $this->params = $params;
                     return true;
@@ -147,7 +153,7 @@ class Router extends DB{
 
         if($_SERVER['REQUEST_METHOD'] === "POST"){
             //run post method
-            if($this->url()[2] == $this->strippedPath($path)){
+            if($this->url()[$index] == $this->strippedPath($path)){
          
                 $this->params = $_POST;
                 return true;
@@ -162,21 +168,31 @@ class Router extends DB{
     }
 
     public function get($path = '/', $params = null){
-        $this->_getList[] = $this->strippedPath($path);
-        return $this->handleRequest($path,$params);
+        if($_SERVER['REQUEST_METHOD'] === "GET"){
+            $this->_getList[] = $this->strippedPath($path);
+            return $this->handleRequest($path,$params);
+        }
     }
 
     public function post($path = '/', $params = null){ 
-        $this->_postList[] = $this->strippedPath($path);
-        return $this->handleRequest($path,$params);
+        if($_SERVER['REQUEST_METHOD'] === "POST"){
+            $this->_postList[] = $this->strippedPath($path);
+            return $this->handleRequest($path,$params);
+        }
     }
 
     public function notFound(){
+        
+        if($_ENV['APP_ENV'] == 'local'){
+            $index = 2;
+        }else{
+            $index = 1;
+        }
 
         if($_SERVER['REQUEST_METHOD'] == "GET"){
 
             
-            if(in_array($this->url()[2], $this->_getList)){
+            if(in_array($this->url()[$index], $this->_getList)){
                
                 return false;
 
@@ -188,7 +204,7 @@ class Router extends DB{
 
         }else{
 
-            if(in_array($this->url()[2], $this->_postList)){
+            if(in_array($this->url()[$index], $this->_postList)){
                
                 return false;
 
@@ -216,9 +232,23 @@ class Router extends DB{
     }
 
     public function _url($index){
-
+        if($_ENV['APP_ENV'] == 'local'){
+            $index = $index;
+        }else{
+            if($index != 0){
+                $index = ($index-1);
+            }else{
+                $index = $index;
+            }
+        }
         if(array_key_exists($index, $this->url())){
-            return $this->url()[$index];
+            if($_SERVER['REQUEST_METHOD'] == "GET"){
+                $this->_getList[] = $this->url()[$index];
+                return $this->url()[$index];
+            }else{
+                $this->_postList[] = $this->url()[$index];
+                return $this->url()[$index];
+            }
         }else{
             return null;
         }

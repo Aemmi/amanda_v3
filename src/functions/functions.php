@@ -69,7 +69,7 @@ function messageController()
             
                 //Recipients
                 $mailer->setFrom($email, $name);
-                $mailer->addAddress('info@yourwebsite.com', 'Scintillant Sparkle'); 
+                $mailer->addAddress('info@yourwebsite.com', 'Site'); 
                 $mailer->isHTML(true);
                 $mailer->Subject = $subject;
                 // $mailer->AddCC($email);
@@ -224,7 +224,7 @@ function url($addr)
 	if($env == 'local'){
 		return $server[0]."/".$server[1]."/".$addr;
 	}else{
-		return $server[1]."/".$addr;
+		return $server[0]."/".$addr;
 	}
 }
 
