@@ -1,20 +1,14 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title><?=$title ?? '';?></title>
-	</head>
-	<body>
-	
-		<h2>Home Page</h2>
+<?php require 'partials/header.php'; ?>
+<div class="container my-5">
+  <h1>Hello, world!</h1>
+  <div class="col-lg-8 px-0">
+    <p class="fs-5">You've successfully loaded up the Bootstrap starter example. It includes <a href="https://getbootstrap.com/">Bootstrap 5</a> via the <a href="https://www.jsdelivr.com/package/npm/bootstrap">jsDelivr CDN</a> and includes an additional CSS and JS file for your own code.</p>
+    <p>Feel free to download or copy-and-paste any parts of this example.</p>
 
-		<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-		tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
-		quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-		consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
-		cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-		proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <hr class="col-1 my-4">
 
-	</body>
-</html>
+    <a href="https://getbootstrap.com" class="btn btn-primary">Read the Bootstrap docs</a>
+    <a href="https://github.com/twbs/examples" class="btn btn-secondary">View on GitHub</a>
+  </div>
+</div>
+<?php require 'partials/footer.php'; ?>
