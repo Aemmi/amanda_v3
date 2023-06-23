@@ -4,6 +4,14 @@ namespace Src\Amanda;
 use Src\Amanda\DB;
 
 class Router extends DB{
+    private $full_path;
+    private $uri;
+    private $request_method;
+    private $indexedParams;
+    private $_getList;
+    private $_postList;
+    public $params;
+
     function __construct(){
         parent::__construct();
         $this->full_path = $_SERVER['REQUEST_URI'];
@@ -55,7 +63,7 @@ class Router extends DB{
         return $this->indexedParams;
     }
 
-    private function strippedPath($path){
+    protected function strippedPath($path){
         return str_replace("/","",$path);
     }
 
