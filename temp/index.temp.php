@@ -5,10 +5,6 @@
     <p class="fs-5">Welcome to Amanda!</p>
 
     <hr class="col-1 my-4">
-    $query = $db->table('users')
-            ->where('age', '>', 18)
-            ->orWhere('country', '=', 'USA')
-            ->get();
 
   </div>
 </div>
