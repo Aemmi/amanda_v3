@@ -56,7 +56,7 @@ class QueryBuilder extends DB
         return $this;
     }
 
-    public function delete()
+    public function del()
     {
         // Perform the actual DELETE query based on the builder settings
         $sql = "DELETE FROM {$this->table}";

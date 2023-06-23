@@ -3,8 +3,10 @@
 require "bootstrap.inc.php";
 
 use Src\Amanda\Router;
+use Src\Amanda\QueryBuilder;
 
 $router = new Router();
+$qb = new QueryBuilder();
 
 if($router->get('/')){
 
