@@ -27,13 +27,14 @@ function cleanUrl($str)
     return $link;
 }
 
-function sanitize($value)
+function input($value)
 {
-    // code...
-    $value = trim($value);
-    // $value = htmlspecialchars($value);
+	if($_SERVER['REQUEST_METHOD'] === "POST"){
+    	$value = trim($_POST[$value]);
+	}else{
+		$value = trim($_GET[$value]);
+	}
     $value = addslashes($value);
-
     return $value;
 }
 

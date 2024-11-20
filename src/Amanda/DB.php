@@ -161,7 +161,7 @@ class DB {
     }
 
     // Delete query method
-    public function delete($sql) {
+    public function destroy($sql) {
         try {
             $stmt = $this->con->prepare($sql);
             $stmt->execute();

@@ -9,8 +9,8 @@
 	consequat.</p>
 	<br/>
 	<br/>
-	<form method="POST" action="<?=url('contact');?>">
-		<p><input type="text" name="fname"></p>
+	<form method="POST" action="<?=url('form/submit');?>">
+		<p><input type="text" name="name"></p>
 		<p><textarea name="message"></textarea></p>
 		<p><input type="submit" name="send"></p>
 	</form>

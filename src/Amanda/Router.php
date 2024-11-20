@@ -1,265 +1,289 @@
 <?php
 
 namespace Src\Amanda;
-use Src\Amanda\DB;
 
-class Router extends DB{
-    private $full_path;
-    private $uri;
-    private $request_method;
-    private $indexedParams;
-    private $_getList;
-    private $_postList;
-    public $params;
+class Router extends DB
+{
+    protected $full_path;
+    protected $uri;
+    protected $request_method;
+    protected $indexedParams = [];
+    protected $_getList = [];
+    protected $_postList = [];
+    protected $params = [];
+    protected $basePath = ''; // Base path for the application
+    protected $routes = [];  // Store the routes for each HTTP method
+    protected $namedRoutes = []; // Named routes
+    protected $middlewares = []; // Middlewares to be executed
+    protected $errorHandlers = []; // Custom error handlers
+    protected $rateLimits = []; // Rate limits storage
+    protected $routeGroupPrefix = ''; // Prefix for grouped routes
 
-    function __construct(){
+    public function __construct($basePath = '')
+    {
         parent::__construct();
-        $this->full_path = $_SERVER['REQUEST_URI'];
-        $this->uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $this->request_method = $_SERVER['REQUEST_METHOD'];
-        $this->indexedParams = array();
-        $this->_getList = [];
-        $this->_postList = [];
+        $this->basePath = $basePath ?: '/'; // Default base path
+        $this->full_path = $_SERVER['REQUEST_URI'] ?? '';
+        $this->uri = parse_url($this->full_path, PHP_URL_PATH);
+        $this->request_method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     }
 
-    //convert incoming url to array
-    public function url(){
-        if($this->isQueryString()){
-            $url = $this->full_path;
-            $query_string_pos = strpos($url, '?');
+    // Normalize the route path
+    private function normalizePath($path)
+    {
+        return trim($path, '/');
+    }
 
-            if ($query_string_pos !== false) {
-              // The query string was found in the URL
-              // You can add a slash before it like this:
-              $url = substr_replace($url, '/', $query_string_pos,0);
-              return explode('/', $url);
+    // Add group prefix to routes
+    private function addGroupPrefix($path)
+    {
+        return $this->routeGroupPrefix ? $this->normalizePath($this->routeGroupPrefix . '/' . $path) : $path;
+    }
+
+    // Register routes
+    public function get($path, $callback, $name = null)
+    {
+        $this->addRoute('GET', $path, $callback, $name);
+    }
+
+    public function post($path, $callback, $name = null)
+    {
+        $this->addRoute('POST', $path, $callback, $name);
+    }
+
+    public function put($path, $callback, $name = null)
+    {
+        $this->addRoute('PUT', $path, $callback, $name);
+    }
+
+    public function patch($path, $callback, $name = null)
+    {
+        $this->addRoute('PATCH', $path, $callback, $name);
+    }
+
+    public function delete($path, $callback, $name = null)
+    {
+        $this->addRoute('DELETE', $path, $callback, $name);
+    }
+
+    private function addRoute($method, $path, $callback, $name = null)
+    {
+        // Normalize and apply the group prefix to the path
+        $fullPath = $this->normalizePath($this->routeGroupPrefix) . '/' . $this->normalizePath($path);
+
+        // Store the route under the corresponding HTTP method
+        $this->routes[$method][$this->normalizePath($fullPath)] = $callback;
+
+        // Optionally store the named route
+        if ($name) {
+            $this->namedRoutes[$name] = $this->normalizePath($fullPath);
+        }
+    }
+
+    // Match the current request to a route
+    public function dispatch()
+    {
+        $uri = $this->uri; // Current request URI
+        $method = $this->request_method; // Current HTTP request method (GET, POST, etc.)
+        
+        // Prepend basePath to the route if it's set
+        $basePath = rtrim($this->basePath, '/');
+        
+        // Iterate over the routes for the current request method
+        foreach ($this->routes[$method] as $route => $callback) {
+            // Ensure the basePath is considered when matching the route
+            $fullRoute = $basePath . '/' . $route;
+
+            // Match the full route with the current URI
+            if ($this->matchRoute($fullRoute, $uri, $params)) {
+                // Create request and response objects (or associative arrays) if needed
+                $request = [
+                    'uri' => $uri,
+                    'method' => $method,
+                    'params' => $params
+                ];
+                $response = []; // Simple response array, can be expanded as needed
+
+                // Create a next function for middleware chaining
+                $next = function () use ($request, $response) {
+                    // Proceed to the next middleware or route handler
+                };
+
+                // Trigger middleware
+                $this->executeMiddlewares($request, $response, $next);
+
+                // Call the matched callback with the route parameters
+                return call_user_func($callback, $params);
             }
-        }else{
-            return explode('/', $this->full_path);
         }
         
+        // If no route is found, trigger a 404 error
+        $this->triggerErrorHandler(404);
     }
 
+    // Match route with dynamic parameters
+    private function matchRoute($route, $path, &$params)
+    {
+        $routeRegex = preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $route);
+        $routeRegex = '/^' . str_replace('/', '\/', $routeRegex) . '$/';
 
-    //check if request is query string
-    public function isQueryString(){
-        if($_SERVER['QUERY_STRING']){
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-    //check if url contains query strings
-    public function queryString(){
-        $str = $this->url()[count($this->url())-(1)];
-        parse_str(str_replace("?", "", $str),$get);
-        $this->request = $get;
-        return $this->request;
-    }
-
-    //get paramaters from query string
-    public function params(){
-        return $this->indexedParams;
-    }
-
-    protected function strippedPath($path){
-        return str_replace("/","",$path);
-    }
-
-    public function contain($p){ 
-        if(isset($_GET[$p])){
-            return true;
-        }elseif(in_array($p,$this->params)){
-            return true;
-        }elseif(isset($_POST[$p])){
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-    public function val($p){
-
-        if($_SERVER['REQUEST_METHOD'] === "GET"){ 
-
-            if($this->isQueryString()){
-                if(isset($_GET[$p])){
-                    return sanitize($_GET[$p]);
+        if (preg_match($routeRegex, $path, $matches)) {
+            foreach ($matches as $key => $value) {
+                if (!is_int($key)) {
+                    $params[$key] = $value;
                 }
-            }else{
-                return $this->url()[array_search($p, $this->url())+1];
             }
-
-        }else{
-
-            return false;
-
+            return true;
         }
 
+        return false;
     }
 
-    public function input($p){
-
-        if($_SERVER['REQUEST_METHOD'] === "POST"){
-
-            if(isset($_POST[$p])){
-                return sanitize($_POST[$p]);
-            }
-
-        }else{
-
-            return false;
-
+    // Named route generation
+    public function route($name, $params = [])
+    {
+        if (!isset($this->namedRoutes[$name])) {
+            throw new \Exception("Route '{$name}' not found.");
         }
-
+        $route = $this->namedRoutes[$name];
+        foreach ($params as $key => $value) {
+            $route = str_replace("{{$key}}", $value, $route);
+        }
+        return '/' . $route;
     }
 
-    public function handleRequest($path,$params){
-        
-        if($_ENV['APP_ENV'] == 'local'){
-            $index = 2;
-        }else{
-            $index = 1;
-        }
+    // Middleware handling
+    public function useMiddleware($middleware)
+    {
+        $this->middlewares[] = $middleware;
+    }
 
-        if($_SERVER['REQUEST_METHOD'] === "GET"){
-
-            //check if url has query string
-            if($this->isQueryString()){ 
-                //run query string method
-                $url_comp = parse_url($this->full_path);
-                parse_str($url_comp['query'], $params);
-                
-                if($this->url()[$index] == $this->strippedPath($path)){
-                    
-                    $this->params = array_keys($this->queryString());
-                    return true;
-
-                }else{
-
-                    return false;
-
-                }
-
-            }else{
-
-                if($this->url()[$index] == $this->strippedPath($path)){
-
-                    $this->params = $params;
-                    return true;
-
-                }else{
-
-                    return false;
-
-                }
-
-            }
-
-        }
-
-        if($_SERVER['REQUEST_METHOD'] === "POST"){
-            //run post method
-            if($this->url()[$index] == $this->strippedPath($path)){
-         
-                $this->params = $_POST;
-                return true;
-
-            }else{
-
-                return false;
-
+    // Execute middlewares with the correct arguments
+    private function executeMiddlewares($request, $response)
+    {
+        foreach ($this->middlewares as $middleware) {
+            if (is_callable($middleware)) {
+                // Call the middleware with $request, $response, and $next arguments
+                $next = function () use ($request, $response) {
+                    // Continue to the next middleware or route handler
+                };
+                $middleware($request, $response, $next);
+            } elseif (is_object($middleware) && method_exists($middleware, 'handle')) {
+                $middleware->handle($request, $response, $next);
             }
         }
-
     }
 
-    public function get($path = '/', $params = null){
-        if($_SERVER['REQUEST_METHOD'] === "GET"){
-            $this->_getList[] = $this->strippedPath($path);
-            return $this->handleRequest($path,$params);
+    // Route grouping
+    public function group($prefix, $callback)
+    {
+        // Backup the current routeGroupPrefix
+        $previousGroupPrefix = $this->routeGroupPrefix;
+
+        // Set the new group prefix
+        $this->routeGroupPrefix = $this->normalizePath($previousGroupPrefix . '/' . $prefix);
+
+        // Execute the callback with the group prefix
+        $callback($this);
+
+        // Restore the previous group prefix
+        $this->routeGroupPrefix = $previousGroupPrefix;
+    }
+
+    public function debugRoutes()
+    {
+        echo '<pre>' . print_r($this->routes, true) . '</pre>';
+    }
+
+    // Error handling
+    public function setErrorHandler($code, $callback)
+    {
+        $this->errorHandlers[$code] = $callback;
+    }
+
+    private function triggerErrorHandler($code)
+    {
+        if (isset($this->errorHandlers[$code])) {
+            call_user_func($this->errorHandlers[$code]);
+        } else {
+            http_response_code($code);
+            echo "{$code} Error";
         }
     }
 
-    public function post($path = '/', $params = null){ 
-        if($_SERVER['REQUEST_METHOD'] === "POST"){
-            $this->_postList[] = $this->strippedPath($path);
-            return $this->handleRequest($path,$params);
+    // Rate limiting
+    public function rateLimit($key, $maxRequests, $duration)
+    {
+        $time = time();
+        $this->rateLimits[$key] = $this->rateLimits[$key] ?? [];
+
+        // Remove expired requests
+        $this->rateLimits[$key] = array_filter($this->rateLimits[$key], function ($timestamp) use ($time, $duration) {
+            return $timestamp > ($time - $duration);
+        });
+
+        // Add the current request
+        $this->rateLimits[$key][] = $time;
+
+        if (count($this->rateLimits[$key]) > $maxRequests) {
+            http_response_code(429);
+            echo "Too Many Requests. Please try again later.";
+            exit;
         }
     }
 
-    public function notFound(){
-        
-        if($_ENV['APP_ENV'] == 'local'){
-            $index = 2;
-        }else{
-            $index = 1;
+    // Route generation method
+    public function generate($name, $params = [])
+    {
+        if (!isset($this->namedRoutes[$name])) {
+            throw new \Exception("Route '{$name}' not found.");
         }
-
-        if($_SERVER['REQUEST_METHOD'] == "GET"){
-
-            
-            if(in_array($this->url()[$index], $this->_getList)){
-               
-                return false;
-
-            }else{
-
-                return true;
-
-            }
-
-        }else{
-
-            if(in_array($this->url()[$index], $this->_postList)){
-               
-                return false;
-
-            }else{
-
-                return true;
-
-            }
-
+        $route = $this->namedRoutes[$name];
+        foreach ($params as $key => $value) {
+            $route = str_replace("{{$key}}", $value, $route);
         }
+        return '/' . $route;
     }
 
-    public static function render($file,$var = array()){
-      
-        extract($var);
-        require('temp/'.$file.'.temp.php');
-
+    // Rendering views
+    public static function render($file, $vars = [])
+    {
+        extract($vars);
+        require('temp/' . $file . '.temp.php');
     }
 
-    public static function use($file,$var = array()){
-       
-        extract($var);
-        require($file.'.route.php');
-
+    // JSON response
+    public static function json($data, $status = 200)
+    {
+        http_response_code($status);
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 
-    public function _url($index){
-        if($_ENV['APP_ENV'] == 'local'){
-            $index = $index;
-        }else{
-            if($index != 0){
-                $index = ($index-1);
-            }else{
-                $index = $index;
-            }
-        }
-        if(array_key_exists($index, $this->url())){
-            if($_SERVER['REQUEST_METHOD'] == "GET"){
-                $this->_getList[] = $this->url()[$index];
-                return $this->url()[$index];
-            }else{
-                $this->_postList[] = $this->url()[$index];
-                return $this->url()[$index];
-            }
-        }else{
-            return null;
-        }
-        
+    // Redirect
+    public static function redirect($url)
+    {
+        header("Location: $url");
+        exit;
     }
-}   
+
+    // CORS support
+    public function enableCORS($allowedOrigins = '*')
+    {
+        header("Access-Control-Allow-Origin: $allowedOrigins");
+        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization");
+    }
+
+    public static function use($file)
+    {
+        require($file . '.route.php');
+    }
+
+    // Handle a request by calling the dispatcher method
+    public function run()
+    {
+        $this->dispatch();
+    }
+}
