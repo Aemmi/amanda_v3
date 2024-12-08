@@ -41,38 +41,41 @@ class Router extends DB
     }
 
     // Register routes
-    public function get($path, $callback, $name = null)
+    public function get($path, $callback, $name = null, $middlewares = [])
     {
-        $this->addRoute('GET', $path, $callback, $name);
+        $this->addRoute('GET', $path, $callback, $name, $middlewares);
     }
 
-    public function post($path, $callback, $name = null)
+    public function post($path, $callback, $name = null, $middlewares = [])
     {
-        $this->addRoute('POST', $path, $callback, $name);
+        $this->addRoute('POST', $path, $callback, $name, $middlewares);
     }
 
-    public function put($path, $callback, $name = null)
+    public function put($path, $callback, $name = null, $middlewares = [])
     {
-        $this->addRoute('PUT', $path, $callback, $name);
+        $this->addRoute('PUT', $path, $callback, $name, $middlewares);
     }
 
-    public function patch($path, $callback, $name = null)
+    public function patch($path, $callback, $name = null, $middlewares = [])
     {
-        $this->addRoute('PATCH', $path, $callback, $name);
+        $this->addRoute('PATCH', $path, $callback, $name, $middlewares);
     }
 
-    public function delete($path, $callback, $name = null)
+    public function delete($path, $callback, $name = null, $middlewares = [])
     {
-        $this->addRoute('DELETE', $path, $callback, $name);
+        $this->addRoute('DELETE', $path, $callback, $name, $middlewares);
     }
 
-    private function addRoute($method, $path, $callback, $name = null)
+    private function addRoute($method, $path, $callback, $name = null, $middlewares = [])
     {
         // Normalize and apply the group prefix to the path
         $fullPath = $this->normalizePath($this->routeGroupPrefix) . '/' . $this->normalizePath($path);
 
         // Store the route under the corresponding HTTP method
-        $this->routes[$method][$this->normalizePath($fullPath)] = $callback;
+        $this->routes[$method][$this->normalizePath($fullPath)] = [
+            'callback' => $callback,
+            'middlewares' => array_merge($this->middlewares, $middlewares), // Merge group and route-specific middlewares
+        ];
 
         // Optionally store the named route
         if ($name) {
@@ -80,47 +83,33 @@ class Router extends DB
         }
     }
 
-    // Match the current request to a route
     public function dispatch()
     {
-        $uri = $this->uri; // Current request URI
-        $method = $this->request_method; // Current HTTP request method (GET, POST, etc.)
-        
-        // Prepend basePath to the route if it's set
-        $basePath = rtrim($this->basePath, '/');
-        
+        $uri = $this->normalizePath($this->uri); // Normalize the current URI
+        $method = $this->request_method; // HTTP method
+    
         // Iterate over the routes for the current request method
-        foreach ($this->routes[$method] as $route => $callback) {
-            // Ensure the basePath is considered when matching the route
-            $fullRoute = $basePath . '/' . $route;
-
-            // Match the full route with the current URI
-            if ($this->matchRoute($fullRoute, $uri, $params)) {
-                // Create request and response objects (or associative arrays) if needed
+        foreach ($this->routes[$method] as $route => $routeDetails) {
+            if ($this->matchRoute($route, $uri, $params)) {
+                $callback = $routeDetails['callback'];
+                $middlewares = $routeDetails['middlewares'];
+    
                 $request = [
                     'uri' => $uri,
                     'method' => $method,
-                    'params' => $params
+                    'params' => $params,
                 ];
-                $response = []; // Simple response array, can be expanded as needed
-
-                // Create a next function for middleware chaining
-                $next = function () use ($request, $response) {
-                    // Proceed to the next middleware or route handler
-                };
-
-                // Trigger middleware
-                $this->executeMiddlewares($request, $response, $next);
-
-                // Call the matched callback with the route parameters
-                return call_user_func($callback, $params);
+                $response = [];
+    
+                $this->executeMiddlewaresAndCallback($middlewares, $callback, $params);
+                return;
             }
         }
-        
-        // If no route is found, trigger a 404 error
+    
+        // Trigger 404 if no route matches
         $this->triggerErrorHandler(404);
     }
-
+    
     // Match route with dynamic parameters
     private function matchRoute($route, $path, &$params)
     {
@@ -159,36 +148,45 @@ class Router extends DB
     }
 
     // Execute middlewares with the correct arguments
-    private function executeMiddlewares($request, $response)
+    private function executeMiddlewaresAndCallback($middlewares, $callback, $params)
     {
-        foreach ($this->middlewares as $middleware) {
-            if (is_callable($middleware)) {
-                // Call the middleware with $request, $response, and $next arguments
-                $next = function () use ($request, $response) {
-                    // Continue to the next middleware or route handler
+        // Define a recursive function to handle middlewares and the final callback
+        $execute = function ($currentMiddlewares) use ($callback, $params, &$execute) {
+            if ($middleware = array_shift($currentMiddlewares)) {
+                // Define the "next" function for the current middleware
+                $next = function () use ($currentMiddlewares, $callback, $params, $execute) {
+                    $execute($currentMiddlewares); // Continue with the remaining middlewares
                 };
-                $middleware($request, $response, $next);
-            } elseif (is_object($middleware) && method_exists($middleware, 'handle')) {
-                $middleware->handle($request, $response, $next);
+    
+                // Call the middleware with $params and $next
+                call_user_func($middleware, $params, $next);
+            } else {
+                // No more middlewares, call the final callback
+                call_user_func($callback, $params);
             }
-        }
+        };
+    
+        // Start executing the middleware chain
+        $execute($middlewares);
     }
 
-    // Route grouping
-    public function group($prefix, $callback)
+    public function group($prefix, $callback, $middlewares = [])
     {
-        // Backup the current routeGroupPrefix
         $previousGroupPrefix = $this->routeGroupPrefix;
-
-        // Set the new group prefix
+        $previousMiddlewares = $this->middlewares;
+    
+        // Set the new group prefix and merge middlewares
         $this->routeGroupPrefix = $this->normalizePath($previousGroupPrefix . '/' . $prefix);
-
-        // Execute the callback with the group prefix
+        $this->middlewares = array_merge($this->middlewares, $middlewares);
+    
+        // Execute the callback
         $callback($this);
-
-        // Restore the previous group prefix
+    
+        // Restore the previous group prefix and middlewares
         $this->routeGroupPrefix = $previousGroupPrefix;
+        $this->middlewares = $previousMiddlewares;
     }
+    
 
     public function debugRoutes()
     {

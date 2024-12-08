@@ -2,9 +2,11 @@
 require "bootstrap.inc.php";
 
 use Src\Amanda\Router;
-// use Src\Amanda\QueryBuilder;
+use Src\Amanda\QueryBuilder;
 
 $router = new Router();
+
+// $router->debugRoutes(); // Debug routes
 
 $router->get('/', function(){
     $vars = [
@@ -13,6 +15,33 @@ $router->get('/', function(){
     ];
     Router::render('index', $vars);
 }, 'home.index');
+
+$router->get('profile', function () {
+    echo "User Profile";
+}, null, [
+    function ($params, $next) {
+        if (!isset($_SESSION['user'])) {
+            Router::redirect('/');
+        }
+        $next();
+    }
+]);
+
+$router->group('admin', function ($router) {
+    $router->get('dashboard', function () {
+        echo "Admin Dashboard";
+    });
+    $router->get('profile', function () {
+        echo "Admin Profile";
+    });
+}, [
+    function ($params, $next) {
+        if (!isset($_SESSION['user'])) {
+            Router::redirect('/');
+        }
+        $next();
+    }
+]);
 
 $router->get('/about', function(){
     $vars = [
@@ -34,8 +63,6 @@ $router->post('/form/submit', function() {
     echo input('name')."<br>";
 	echo input('message');
 });
-
-// $router->use('web', $router);
 
 // PUT request: Update Student Details
 $router->put('/student/{id}', function ($params) {
@@ -78,7 +105,7 @@ $router->get('/student/{id}', function ($params) {
     $id = $params['id'] ?? null;
 
     if ($id) {
-        echo "Displaying profile for student ID $id".input('page');
+        echo "Displaying profile for student ID $id";
     } else {
         echo "Student ID not provided!";
     }
@@ -93,13 +120,6 @@ $router->get('/student/{id}/{subject}', function ($params) {
         echo "Student ID not provided!";
     }
 }, 'student.profile');
-
-// Grouped routes: Admin section
-$router->group('/admin', function ($router) {
-    $router->get('/settings', function () {
-        echo "Admin Settings Page";
-    });
-});
 
 // GET request: Home Page
 $router->get('/home', function () {
@@ -129,12 +149,16 @@ $router->post('/login', function () {
     echo "Processing login...";
 }, 'login.rateLimited');
 
+$router->get('/logout', function () {
+    echo "Processing logout...";
+    session_destroy();
+    Router::redirect('/');
+}, 'login.rateLimited');
+
 // Custom 404 Error Handler
 $router->setErrorHandler(404, function () {
     echo "Page not found!";
 });
-
-// $router->debugRoutes(); // Debug routes
 
 // Process the current request
 $router->run();
