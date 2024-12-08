@@ -12,6 +12,8 @@ class DB {
     private $db_password;
     private $db_database;
     private $con = null;
+    private $sql;
+    private $result;
 
     public function __construct() {
         // Define db variables as objects
@@ -58,14 +60,32 @@ class DB {
     }
 
     // Function to count number of rows from a query
-    public function countRows($sql) {
+    public function count($sql, $params = []) {
         $this->sql = $sql;
 
         try {
-            $stmt = $this->con->query($this->sql);
+            // Check if the query contains placeholders (?)
+            if (strpos($sql, '?') !== false && !empty($params)) {
+                // This is a prepared statement with placeholders
+                $stmt = $this->con->prepare($sql);
+
+                // Bind the parameters dynamically
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key + 1, $value); // Bind parameters starting from position 1
+                }
+
+                // Execute the prepared statement
+                $stmt->execute();
+            } else {
+                // This is a regular query without placeholders
+                $stmt = $this->con->query($sql);
+            }
+
+            // Return the number of rows
             return $stmt->rowCount();
+
         } catch (PDOException $e) {
-            return 0;
+            return 0; // Return 0 if an error occurs
         }
     }
 
@@ -78,57 +98,110 @@ class DB {
     }
 
     // Function to insert data into the db
-    public function insert($sql) {
+    public function insert($sql, $params = []) {
         $this->sql = $sql;
-
+    
         try {
-            $query = $this->con->exec($this->sql);
-            if ($query === false) {
-                return 0;
+            // Check if the query contains placeholders (?)
+            if (strpos($sql, '?') !== false && !empty($params)) {
+                // This is a prepared statement with placeholders
+                $stmt = $this->con->prepare($this->sql);
+    
+                // Bind the parameters dynamically
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key + 1, $value); // Bind parameters starting from position 1
+                }
+    
+                // Execute the prepared statement
+                $stmt->execute();
             } else {
-                return 1;
+                // This is a regular query without placeholders
+                $query = $this->con->exec($this->sql);
+                if ($query === false) {
+                    return 0; // Return 0 if the query execution failed
+                }
             }
+    
+            return 1; // Return 1 if successful
+    
         } catch (PDOException $e) {
-            return 0;
+            return 0; // Return 0 if there is an exception
         }
-    }
+    }    
 
     // Function to perform selection queries from db
-    public function select($sql) {
+    public function select($sql, $params = []) {
         $this->sql = $sql;
         $this->result = array();
-
+    
         try {
-            $stmt = $this->con->query($this->sql);
+            // Check if the query contains placeholders (?)
+            if (strpos($sql, '?') !== false && !empty($params)) {
+                // This is a prepared statement with placeholders
+                $stmt = $this->con->prepare($this->sql);
+    
+                // Bind the parameters dynamically
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key + 1, $value); // Bind parameters starting from position 1
+                }
+    
+                $stmt->execute();
+            } else {
+                // This is a regular query without placeholders
+                $stmt = $this->con->query($this->sql);
+            }
+    
+            // Fetch results
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $this->result[] = $row;
             }
+    
         } catch (PDOException $e) {
             return $e->getMessage();
         }
-
+    
         return $this->result;
     }
+    
 
-    public function find($tbl, $col) {
-        $data = explode('.', $tbl);
+    public function find($tbl, $col)
+    {
+        // Validate table and column format
+        if (strpos($tbl, '.') === false) {
+            throw new \Exception("Invalid table.column format: $tbl");
+        }
 
-        $table = $data[0];
-        $column = $data[1];
+        // Extract table and column
+        [$table, $column] = explode('.', $tbl);
 
+        // Sanitize table and column names
+        $allowedTables = ['users', 'posts', 'products']; // Example whitelist
+        $allowedColumns = ['id', 'email', 'username']; // Example whitelist
+
+        if (!in_array($table, $allowedTables) || !in_array($column, $allowedColumns)) {
+            throw new \Exception("Invalid table or column name.");
+        }
+
+        // Build the query
         $this->sql = "SELECT * FROM $table WHERE $column = :col LIMIT 1";
 
-        $this->result = array();
+        $this->result = [];
 
         try {
+            // Prepare statement
+            $stmt = $this->con->prepare($this->sql);
+
+            // Bind parameter and execute
             $stmt->bindParam(':col', $col, PDO::PARAM_STR);
             $stmt->execute();
 
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $this->result[] = $row;
-            }
+            // Fetch results
+            $this->result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
         } catch (PDOException $e) {
-            return $e->getMessage();
+            // Log error and optionally rethrow
+            error_log($e->getMessage());
+            throw new \Exception("Database error occurred.");
         }
 
         return $this->result;
@@ -161,27 +234,64 @@ class DB {
     }
 
     // Delete query method
-    public function destroy($sql) {
+    public function destroy($sql, $params = []) {
         try {
-            $stmt = $this->con->prepare($sql);
-            $stmt->execute();
+            // Check if the query contains placeholders (?)
+            if (strpos($sql, '?') !== false && !empty($params)) {
+                // This is a prepared statement with placeholders
+                $stmt = $this->con->prepare($sql);
 
-            return $stmt->rowCount();
+                // Bind the parameters dynamically
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key + 1, $value); // Bind parameters starting from position 1
+                }
+
+                // Execute the prepared statement
+                $stmt->execute();
+            } else {
+                // This is a regular query without placeholders
+                $stmt = $this->con->exec($sql);
+                if ($stmt === false) {
+                    return 0; // Return 0 if the query execution failed
+                }
+            }
+
+            return 1; // Return 1 if successful
+
         } catch (PDOException $e) {
-            return $e->getMessage();
+            return $e->getMessage(); // Return error message in case of an exception
         }
     }
 
     // Update query method
-    public function update($sql) {
+    public function update($sql, $params = []) {
         try {
-            $stmt = $this->con->prepare($sql);
-            $stmt->execute();
+            // Check if the query contains placeholders (?)
+            if (strpos($sql, '?') !== false && !empty($params)) {
+                // This is a prepared statement with placeholders
+                $stmt = $this->con->prepare($sql);
 
-            return $stmt->rowCount();
+                // Bind the parameters dynamically
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key + 1, $value); // Bind parameters starting from position 1
+                }
+
+                // Execute the prepared statement
+                $stmt->execute();
+            } else {
+                // This is a regular query without placeholders
+                $stmt = $this->con->exec($sql);
+                if ($stmt === false) {
+                    return 0; // Return 0 if the query execution failed
+                }
+            }
+
+            return 1; // Return 1 if successful
+
         } catch (PDOException $e) {
-            return $e->getMessage();
+            return $e->getMessage(); // Return error message in case of an exception
         }
     }
+
 }
 

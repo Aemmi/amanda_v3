@@ -3,12 +3,13 @@ require "bootstrap.inc.php";
 
 use Src\Amanda\Router;
 use Src\Amanda\QueryBuilder;
+use Src\Amanda\DB;
 
 $router = new Router();
 
 // $router->debugRoutes(); // Debug routes
 
-$router->get('/', function(){
+$router->get('/', function() use ($router) {
     $vars = [
         'title' => 'Home Page',
         'content' => 'Welcome to the School Management System!'
